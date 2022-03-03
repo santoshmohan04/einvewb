@@ -1,0 +1,115 @@
+<div class="container" style="padding: 20px; width: 35rem;">
+    <div class="card">
+        <div class="card-header">
+            <ul class="nav nav-pills card-header-pills">
+                <li class="nav-item">
+                    <a href="#login" class="nav-link active" data-bs-toggle="tab">Login</a>
+                </li>
+                <li class="nav-item">
+                    <a href="#signup" class="nav-link" data-bs-toggle="tab">Signup</a>
+                </li>
+                <li class="nav-item">
+                    <a href="#frgpswd" class="nav-link" data-bs-toggle="tab">Forgot Password</a>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body">
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="login">
+                    <h5 class="card-title text-warning"><i>Login to your account</i></h5>
+                    <div class="card-text">
+                        <div class="alert alert-danger" *ngIf="error">
+                            <p>{{ error }}</p>
+                        </div>
+                        <div *ngIf="isLoading" style="text-align: center;">
+                            <app-loading-spinner></app-loading-spinner>
+                        </div>
+                        <form #loginForm="ngForm" (ngSubmit)="onSignin(loginForm)" *ngIf="!isLoading">
+                            <div class="mb-3">
+                                <label for="eml">E-Mail</label>
+                                <input
+                                  type="email"
+                                  id="eml"
+                                  class="form-control"
+                                  ngModel
+                                  name="eml"
+                                  required
+                                  email
+                                />
+                            </div>
+                            <div class="mb-3">
+                                <label for="pswd">Password</label>
+                                <input
+                                  type="password"
+                                  id="pswd"
+                                  class="form-control"
+                                  ngModel
+                                  name="pswd"
+                                  required
+                                  minlength="6"
+                                />
+                            </div>
+                            <button type="submit" name="login" class="btn btn-primary me-5" [disabled]="!loginForm.valid">Submit</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="signup">
+                    <h3 style="text-align: center; color: blue;">Enter details below to signup</h3>
+                    <form #signupForm="ngForm" (ngSubmit)="onSignup(signupForm)" *ngIf="!isLoading">
+                        <div class="mb-3">
+                            <label for="email">E-Mail</label>
+                            <input
+                              type="email"
+                              id="emlsg"
+                              class="form-control"
+                              ngModel
+                              name="emlsg"
+                              required
+                              email
+                            />
+                        </div>
+                        <div class="mb-3">
+                            <label for="dispnm">Name</label>
+                            <input
+                              type="text"
+                              id="dispnm"
+                              class="form-control"
+                              ngModel
+                              name="dispnm"
+                              required
+                              minlength="4"
+                            />
+                        </div>
+                        <div class="mb-3">
+                            <label for="newsgpswd">Enter new Password</label>
+                            <input type="password" class="form-control" name="newsgpswd" id="newsgpswd" ngModel required minlength="6">
+                        </div>
+                        <div class="mb-3">
+                            <label for="resgpswd">Conform the Password</label>
+                            <input type="password" class="form-control" name="resgpswd" id="resgpswd" ngModel required minlength="6">
+                        </div>
+                        <button type="submit" name="chngpsw" class="btn btn-primary" [disabled]="!signupForm.valid">Signup</button>
+                    </form>
+                </div>
+                <div class="tab-pane fade" id="frgpswd">
+                    <h3 style="text-align: center; color: blue;">Password reset link will be sent to email</h3>
+                    <form #chngpswdForm="ngForm" (ngSubmit)="onChange(chngpswdForm)" *ngIf="!isLoading">
+                        <div class="mb-3">
+                            <label for="emlfg">E-Mail</label>
+                            <input
+                              type="email"
+                              id="emlfg"
+                              class="form-control"
+                              ngModel
+                              name="emlfg"
+                              required
+                              email
+                            />
+                        </div>
+                        <button type="submit" name="chngpsw" class="btn btn-primary" [disabled]="!chngpswdForm.valid">Change</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

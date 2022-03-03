@@ -1,0 +1,19 @@
+.price-red {
+    color: red;
+}
+
+.price-green {
+    color:green;
+}
+
+h3 {
+    text-align: center;
+}
+
+.card-tools {
+    float: right;
+}
+
+.content {
+    padding-top: 10px;
+}

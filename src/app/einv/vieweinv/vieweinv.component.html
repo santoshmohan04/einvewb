@@ -1,0 +1,404 @@
+<div class="container-fluid">
+    <h3>View E-Invoices</h3>
+    <div class="row" *ngIf="data">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-tools">
+                        <div class="input-group input-group-sm float-right" style="width: 350px;">
+                        <input type="text" name="table_search" class="form-control float-right" placeholder="Search" [(ngModel)]="search">
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body table-responsive p-0">
+                    <table id="table_id" class="table table-head-fixed text-nowrap table-bordered table-hover display" style="display: block; overflow-x: auto; overflow-y: auto; white-space: nowrap; height: 500px;">
+                        <thead >
+                            <tr class="table-primary" style="position: sticky;top: 0">
+                                <th>Document Number</th>
+                                <th>Document Date</th>
+                                <th>Document Type</th>
+                                <th>Supply Type</th>
+                                <th>IRN Status</th>
+                                <th>Seller GSTIN</th>
+                                <th>Buyer GSTIN</th>
+                                <th>Buyer Name</th>
+                                <th>IRN</th>
+                                <th>Acknowledgement Number</th>
+                                <th>Acknowledgement Date</th>
+                                <th>Total Invoice Value</th>
+                                <th class="text-center" scope="col">Edit</th>
+                            </tr>
+                        </thead>
+                        <tbody *ngFor="let t of data | filter : search; let i = index">
+                            <tr>
+                                <td (click)="invDtls(i)" style="text-decoration: underline;" data-bs-toggle="modal" data-bs-target="#myModal">{{ t.docno }}</td>
+                                <td>{{ t.docdt }}</td>
+                                <td>{{ t.doctyp }}</td>
+                                <td>{{ t.supp_typ }}</td>
+                                <td><span [ngClass]="t.irn_status === 'IRN_GENERATED' ? 'price-green' : 'price-red'"><b>{{ t.irn_status }}</b></span></td>
+                                <td>{{ t.sel_gstin }}</td>
+                                <td>{{ t.buyer_gstin }}</td>
+                                <td>{{ t.buyer_nm }}</td>
+                                <td>{{ t.irn }}</td>
+                                <td>{{ t.ack_no }}</td>
+                                <td>{{ t.ack_dt }}</td>
+                                <td>Rs.{{ t.total_val }}</td>
+                                <td class="text-center action-block">
+                                    <span class="mr-2 btn btn-outline-danger btn-sm" (click)="onDelete(i)">Delete</span> 
+                                    <span class="btn btn-outline-primary btn-sm" (click)="onPrint(i)">Print</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            <!-- /.card-body -->
+            </div>
+            <!-- /.card -->
+        </div>
+    </div>
+    <div class="modal" id="myModal">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+    
+                <!-- Modal Header -->
+                <div class="modal-header">
+                    <h4 class="modal-title">Invoice Details</h4>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+    
+                <!-- Modal body -->
+                <div class="alert alert-danger" *ngIf="error">
+                    <p>{{ error }}</p>
+                </div>
+                <div *ngIf="isLoading" style="text-align: center;">
+                    <app-loading-spinner></app-loading-spinner>
+                </div>
+                <div class="modal-body" *ngIf="invData">
+                    <mdb-tabs [pills]="true" [vertical]="true">
+                        <mdb-tab title="Basic Details">
+                            <table class='table table-hover table-bordered table-responsive'>
+                                <thead class='thead-light'>
+                                    <tr class="table-primary">
+                                    <th scope='col'>Supply Type</th>
+                                    <th scope='col'>Document Type</th>
+                                    <th scope='col'>Invoice Number</th>
+                                    <th scope='col'>Invoice Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                    <td> {{ invData[0].transaction.TranDtls.SupTyp }} </td>
+                                    <td> {{ invData[0].transaction.DocDtls.Typ }} </td>
+                                    <td> {{ invData[0].transaction.DocDtls.No }} </td>
+                                    <td> {{ invData[0].transaction.DocDtls.Dt }} </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <table class='table table-hover table-bordered table-responsive'>
+                                <thead class='thead-light'>
+                                    <tr class="table-primary">
+                                    <th scope='col'>IRN Status</th>
+                                    <th scope='col'>IRN</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                    <td> {{ invData[0].document_status }} </td>
+                                    <td> {{ invData[0].govt_response.Irn }} </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <table class='table table-hover table-bordered table-responsive'>
+                                <thead class='thead-light'>
+                                    <tr class="table-primary">
+                                    <th scope='col'>E-way bill No</th>
+                                    <th scope='col'>E-way bill Date</th>
+                                    <th scope='col'>E-way bill Validity</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                    <td> {{ invData[0].govt_response.EwbNo }} </td>
+                                    <td> {{ invData[0].govt_response.EwbDt }} </td>
+                                    <td> {{ invData[0].govt_response.EwbValidTill }} </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </mdb-tab>
+                        <mdb-tab title="Seller Details">
+                            <table class='table table-hover table-bordered table-responsive'>
+                                <thead class='thead-light'>
+                                    <tr class="table-primary">
+                                        <th scope='col'>SELLER GSTIN</th>
+                                        <th scope='col'>LEGAL NAME</th>
+                                        <th scope='col'>ADDRESS</th>
+                                        <th scope='col'>LOCATION</th>
+                                        <th scope='col'>PINCODE</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td> {{ invData[0].transaction.SellerDtls.Gstin }} </td>
+                                        <td> {{ invData[0].transaction.SellerDtls.LglNm }} </td>
+                                        <td> {{ invData[0].transaction.SellerDtls.Addr1 }} </td>
+                                        <td> {{ invData[0].transaction.SellerDtls.Loc }} </td>
+                                        <td> {{ invData[0].transaction.SellerDtls.Pin }} </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <table class='table table-hover table-bordered table-responsive'>
+                                <thead class='thead-light'>
+                                    <tr class="table-primary">
+                                        <th scope='col'>STATE CODE</th>
+                                        <th scope='col'>PHONE</th>
+                                        <th scope='col'>EMAIL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td> {{ invData[0].transaction.SellerDtls.Stcd }} </td>
+                                        <td> {{ invData[0].transaction.SellerDtls.Ph }} </td>
+                                        <td> {{ invData[0].transaction.SellerDtls.Em }} </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </mdb-tab>
+                        <mdb-tab title="Buyer Details">
+                            <table class='table table-hover table-bordered table-responsive'>
+                                <thead class='thead-light'>
+                                    <tr class="table-primary">
+                                        <th scope='col'>BUYER GSTIN</th>
+                                        <th scope='col'>LEGAL NAME</th>
+                                        <th scope='col'>PLACE OF SUPPLY</th>
+                                        <th scope='col'>LOCATION</th>
+                                        <th scope='col'>PINCODE</th>
+                                        <th scope='col'>STATE CODE</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td> {{ invData[0].transaction.BuyerDtls.Gstin }} </td>
+                                        <td> {{ invData[0].transaction.BuyerDtls.LglNm }} </td>
+                                        <td> {{ invData[0].transaction.BuyerDtls.Pos }} </td>
+                                        <td> {{ invData[0].transaction.BuyerDtls.Loc }} </td>
+                                        <td> {{ invData[0].transaction.BuyerDtls.Pin }} </td>
+                                        <td> {{ invData[0].transaction.BuyerDtls.Stcd }} </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <table class='table table-hover table-bordered table-responsive'>
+                                <thead class='thead-light'>
+                                    <tr class="table-primary">
+                                        <th scope='col'>ADDRESS</th>
+                                        <th scope='col'>PHONE</th>
+                                        <th scope='col'>EMAIL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td> {{ invData[0].transaction.BuyerDtls.Addr1 }} </td>
+                                        <td> {{ invData[0].transaction.BuyerDtls.Ph }} </td>
+                                        <td> {{ invData[0].transaction.BuyerDtls.Em }} </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </mdb-tab>
+                        <mdb-tab title="Dispatch Details" *ngIf="invData[0].transaction.DispDtls">
+                            <table class='table table-hover table-bordered table-responsive'>
+                                <thead class='thead-light'>
+                                <tr class="table-primary">
+                                <th scope='col'>COMPANY NAME</th>
+                                <th scope='col'>ADDRESS</th>
+                                <th scope='col'>LOCATION</th>
+                                <th scope='col'>PINCODE</th>
+                                <th scope='col'>STATE CODE</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td> {{ invData[0].transaction.DispDtls.Nm }} </td>
+                                    <td> {{ invData[0].transaction.DispDtls.Addr1 }} </td>
+                                    <td> {{ invData[0].transaction.DispDtls.Loc }} </td>
+                                    <td> {{ invData[0].transaction.DispDtls.Pin }} </td>
+                                    <td> {{ invData[0].transaction.DispDtls.Stcd }} </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </mdb-tab>
+                        <mdb-tab title="Shipping Details" *ngIf="invData[0].transaction.ShipDtls">
+                            <table class='table table-hover table-bordered table-responsive'>
+                                <thead class='thead-light'>
+                                <tr class="table-primary">
+                                <th scope='col'>SHIP TO GST</th>
+                                <th scope='col'>COMPANY NAME</th>
+                                <th scope='col'>ADDRESS</th>
+                                <th scope='col'>LOCATION</th>
+                                <th scope='col'>PINCODE</th>
+                                <th scope='col'>STATE CODE</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td> {{ invData[0].transaction.ShipDtls.Gstin }} </td>
+                                    <td> {{ invData[0].transaction.ShipDtls.LglNm }} </td>
+                                    <td> {{ invData[0].transaction.ShipDtls.Addr1 }} </td>
+                                    <td> {{ invData[0].transaction.ShipDtls.Loc }} </td>
+                                    <td> {{ invData[0].transaction.ShipDtls.Pin }} </td>
+                                    <td> {{ invData[0].transaction.ShipDtls.Stcd }} </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </mdb-tab>
+                        <mdb-tab title="Item Details">
+                            <table class='table table-hover table-head-fixed table-bordered table-responsive' style="display: block; overflow-x: auto; overflow-y: auto; white-space: nowrap; height: 450px;">
+                                <thead class='thead-light'>
+                                <tr class="table-primary">
+                                <th scope='col'>S.No</th>
+                                <th scope='col'>ITEM DESCRIPTION</th>
+                                <th scope='col'>HSN CODE</th>
+                                <th scope='col'>QUANTITY</th>
+                                <th scope='col'>UNIT</th>
+                                <th scope='col'>UNIT PRICE</th>
+                                <th scope='col'>GROSS AMOUNT</th>
+                                <th scope='col'>DISCOUNT</th>
+                                <th scope='col'>PRE TAX VALUE</th>
+                                <th scope='col'>ITEM TAXABLE VALUE</th>
+                                <th scope='col'>GST RATE</th>
+                                <th scope='col'>IGST AMOUNT</th>
+                                <th scope='col'>CGST AMOUNT</th>
+                                <th scope='col'>SGST AMOUNT</th>
+                                <th scope='col'>OTHER CHARGES</th>
+                                <th scope='col'>TOTAL ITEM VALUE</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr *ngFor="let x of invData[0].transaction.ItemList">
+                                <td> {{ x.SlNo }} </td>
+                                <td> {{ x.PrdDesc }} </td>
+                                <td> {{ x.HsnCd }} </td>
+                                <td> {{ x.Qty }} </td>
+                                <td> {{ x.Unit }} </td>
+                                <td> {{ x.UnitPrice }} </td>
+                                <td> {{ x.TotAmt }} </td>
+                                <td> {{ x.Discount }} </td>
+                                <td> {{ x.PreTaxVal }} </td>
+                                <td> {{ x.AssAmt }} </td>
+                                <td> {{ x.GstRt }} </td>
+                                <td> {{ x.IgstAmt }} </td>
+                                <td> {{ x.CgstAmt }} </td>
+                                <td> {{ x.SgstAmt }} </td>
+                                <td> {{ x.OthChrg }} </td>
+                                <td> {{ x.TotItemVal }} </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </mdb-tab>
+                        <mdb-tab title="Document Total Details">
+                            <table class='table table-hover table-bordered table-responsive'>
+                                <thead class='thead-light'>
+                                <tr class="table-primary">
+                                <th scope='col'>Total Taxable Value</th>
+                                <th scope='col'>IGST  Amount Total</th>
+                                <th scope='col'>CGST  Amount Total</th>
+                                <th scope='col'>SGST/UTGST Amount Total</th>
+                                <th scope='col'>Other Charge(Invoice Level)</th>
+                                <th scope='col'>Round Off Amount</th>
+                                <th scope='col'>Total Invoice Value in INR</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                <td> {{ invData[0].transaction.ValDtls.AssVal }} </td>
+                                <td> {{ invData[0].transaction.ValDtls.IgstVal }} </td>
+                                <td> {{ invData[0].transaction.ValDtls.CgstVal }} </td>
+                                <td> {{ invData[0].transaction.ValDtls.SgstVal }} </td>
+                                <td> {{ invData[0].transaction.ValDtls.OthChrg }} </td>
+                                <td> {{ invData[0].transaction.ValDtls.RndOffAmt }} </td>
+                                <td> {{ invData[0].transaction.ValDtls.TotInvVal }} </td>  
+                                </tr>
+                                </tbody>
+                            </table>
+                        </mdb-tab>
+                        <mdb-tab title="Export Details" *ngIf="invData[0].transaction.ExpDtls">
+                            <table class='table table-hover table-bordered table-responsive'>
+                                <thead class='thead-light'>
+                                <tr class="table-primary">
+                                <th scope='col'>SHIPPING PORT CODE</th>
+                                <th scope='col'>REFERNCE CLAIM</th>
+                                <th scope='col'>SHIPPING BILL DATE</th>
+                                <th scope='col'>SHIPPING BILL NUMBER</th>
+                                <th scope='col'>EXPORT TO COUNTRY CODE</th>
+                                <th scope='col'>CURRENCY CODE</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td> {{ invData[0].transaction.ExpDtls.Port }} </td>
+                                    <td> {{ invData[0].transaction.ExpDtls.RefClm }} </td>
+                                    <td> {{ invData[0].transaction.ExpDtls.ShipBDt }} </td>
+                                    <td> {{ invData[0].transaction.ExpDtls.ShipBNo }} </td>
+                                    <td> {{ invData[0].transaction.ExpDtls.CntCode }} </td>
+                                    <td> {{ invData[0].transaction.ExpDtls.ForCur }} </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </mdb-tab>
+                        <mdb-tab title="E-waybill Details" *ngIf="invData[0].transaction.EwbDtls">
+                            <table class='table table-hover table-bordered table-responsive'>
+                                <thead class='thead-light'>
+                                <tr class="table-primary">
+                                <th scope='col'>Transporter ID</th>
+                                <th scope='col'>Trans Mode</th>
+                                <th scope='col'>Trans Distance</th>
+                                <th scope='col'>Transporter Name</th>
+                                <th scope='col'>Trans Doc No.</th>
+                                <th scope='col'>Trans Doc Date</th>
+                                <th scope='col'>Vehicle No.</th>
+                                <th scope='col'>Vehicle Type</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td> {{ invData[0].transaction.EwbDtls.TransId }} </td>
+                                    <td> {{ invData[0].transaction.EwbDtls.TransMode }} </td>
+                                    <td> {{ invData[0].transaction.EwbDtls.Distance }} </td>
+                                    <td> {{ invData[0].transaction.EwbDtls.TransName }} </td>
+                                    <td> {{ invData[0].transaction.EwbDtls.TransDocNo }} </td>
+                                    <td> {{ invData[0].transaction.EwbDtls.TransDocDt }} </td>
+                                    <td> {{ invData[0].transaction.EwbDtls.VehNo }} </td>
+                                    <td> {{ invData[0].transaction.EwbDtls.VehType }} </td>  
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </mdb-tab>
+                        <mdb-tab title="Aditional document Details" *ngIf="invData[0].transaction.AddlDocDtls">
+                            <table class='table table-hover table-bordered table-responsive'>
+                                <thead class='thead-light'>
+                                <tr class="table-primary">
+                                <th scope='col'>Additional Supporting documents</th>
+                                <th scope='col'>Additional Information</th>
+                                <th scope='col'>Additional Supporting documents URL</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr *ngFor="let x of invData[0].transaction.AddlDocDtls">
+                                    <td> {{ x.Docs }} </td>
+                                    <td> {{ x.Info }} </td>
+                                    <td> {{ x.Url }} </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </mdb-tab>
+                    </mdb-tabs>
+                </div>
+    
+                <!-- Modal footer -->
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
+                </div>
+    
+            </div>
+        </div>
+    </div>
+    
+</div>    
