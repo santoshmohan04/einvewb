@@ -74,7 +74,7 @@
                         </tr>
                         </thead>
                         <tbody>
-                        <tr class="table-primary" data-widget="expandable-table" aria-expanded="false" *ngFor="let i of irnStatus[0].govt_response.ErrorDetails">
+                        <tr data-widget="expandable-table" aria-expanded="false" *ngFor="let i of irnStatus[0].govt_response.ErrorDetails">
                             <td>{{ irnStatus[0].document_status }}</td>
                             <td>{{ i.error_code }}</td>
                             <td>{{ i.error_source }}</td>

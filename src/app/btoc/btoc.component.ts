@@ -1,7 +1,7 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
-import { saveAs } from 'file-saver';
+import { UploadService } from '../shared/upload.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-btoc',
@@ -11,8 +11,6 @@ import { saveAs } from 'file-saver';
 export class BtocComponent implements OnInit {
   sellerGstin = ['29AAFCD5862R000', '27AAFCD5862R013', '24AAFCD5862R005', '35AAFCD5862R010', '09AAFCD5862R006', '37AAFCD5862R011', '07AAFCD5862R007', '33AAFCD5862R009', '05AAFCD5862R012', '13AAFCD5862R008'];
   btocUplForm: FormGroup;
-  file: File = null; // Variable to store file
-  fileReader: any = new FileReader();
   invData: any = "";  
   irnStatus: any = "";
   fireBase: any = ""; 
@@ -24,8 +22,9 @@ export class BtocComponent implements OnInit {
   req_firid: any = "";
   gstin_error: string;
   js_gstin: string;
+  subscription: Subscription;
 
-  constructor(private http: HttpClient) { }
+  constructor(private uploadJson: UploadService) { }
 
   ngOnInit() {
     this.btocUplForm = new FormGroup({
@@ -36,21 +35,17 @@ export class BtocComponent implements OnInit {
 
 
   // On file Select
-  onChange(event) {
-    this.file = event.target.files[0];
-    this.fileReader.readAsText(this.file, "UTF-8");
-    this.fileReader.onload = () => {
-      this.invData = JSON.parse(this.fileReader.result);
+  onChange($event) {
+    this.uploadJson.readThis($event.target)
+    .subscribe((response: any): void => {
+      this.invData = JSON.parse(response);
       this.docNo= this.invData[0].transaction.DocDtls.No;
       let inp_gstin = this.btocUplForm.value.gstin;
       this.js_gstin = this.invData[0].transaction.SellerDtls.Gstin;
       if (inp_gstin !== this.js_gstin) {
         this.gstin_error = "The Selected Seller GSTIN and JSON File Seller GSTIN are different kindly check";
       }
-    }
-    this.fileReader.onerror = (error) => {
-      console.log(error);
-    }
+    });
   }
 
   onGstin(event) {
@@ -75,14 +70,12 @@ export class BtocComponent implements OnInit {
       'buyer_nm': this.invData[0].transaction.BuyerDtls.LglNm,
       'inv_status': 'Not Generated',
       'total_val': this.invData[0].transaction.ValDtls.TotInvVal,
-      'inv_req': this.fileReader.result
+      'inv_req': this.invData
     };
 
-    this.http
-      .post(
-        'https://myeinvewb-default-rtdb.firebaseio.com/b2cqr.json',
-        b2cData
-      )
+    let doctyp = 'b2cqr';
+
+    this.uploadJson.saveData(b2cData, doctyp)
       .subscribe((responseData) => {
         console.log(responseData);
         this.fireBase = responseData;
@@ -92,13 +85,14 @@ export class BtocComponent implements OnInit {
   }
 
   genB2c() {
-    this.http
-      .post(
-        'http://ec2-3-110-62-197.ap-south-1.compute.amazonaws.com/einvewbreqres/php/b2c.php', {gstin: this.btocUplForm.value.gstin, fileToUpload: this.invData}
-      )
+    let gendata = {gstin: this.btocUplForm.value.gstin, fileToUpload: this.invData};
+    let doctyp = 'b2c';
+    this.uploadJson.generate(gendata, doctyp)
       .subscribe((responseData) => {
         console.log(responseData);
         this.irnStatus = responseData;
+        let doctyp = 'b2cqr';
+        let fbid = this.fireBase.name; 
         if (!this.irnStatus.qr_code) {
           let b2cResp = {
             'inv_status': "QR Code Not Generated",
@@ -107,11 +101,7 @@ export class BtocComponent implements OnInit {
             'error_source': this.irnStatus.error.errors.error_source,
             'inv_resp': this.irnStatus,
           };
-          this.http
-          .patch(
-            'https://myeinvewb-default-rtdb.firebaseio.com/b2cqr/' + this.fireBase.name + '.json',
-            b2cResp
-          )
+          this.uploadJson.updateData(b2cResp, doctyp, fbid)
           .subscribe((responseData) => {
             console.log("Response Data Saved:" + responseData);
           });
@@ -121,14 +111,10 @@ export class BtocComponent implements OnInit {
             'trns_id': this.irnStatus.transaction_id,
             'inv_resp': this.irnStatus,
           };
-          this.http
-          .patch(
-            'https://myeinvewb-default-rtdb.firebaseio.com/b2cqr/' + this.fireBase.name + '.json',
-            b2cResp
-          )
+          this.uploadJson.updateData(b2cResp, doctyp, fbid)
           .subscribe((responseData) => {
             console.log("Response Data Saved:" + responseData);
-          }); 
+          });
         }  
       });
   }
@@ -142,18 +128,10 @@ export class BtocComponent implements OnInit {
   }
 
   downloadJson() {
-    console.log("I am in Print console");
-			let data: any = this.irnStatus;
-			let fileName: any = this.docNo + '_response.json';
-
-			// Create a blob of the data
-			let fileToSave = new Blob([JSON.stringify(data)], {
-				type: 'application/json',
-			});
-
-			// Save the file
-			saveAs(fileToSave, fileName);
-			console.log("File Downloaded");
+    this.uploadJson.respDownload(this.irnStatus, this.docNo)
+    .subscribe((response: any): void => {
+      response
+    });
   }
 
   onirnPrint() {
@@ -161,16 +139,18 @@ export class BtocComponent implements OnInit {
       'id': this.irnStatus.transaction_id,
       'gstin': this.irnStatus.gstin
     }
-    this.http
-      .post(
-        'http://ec2-3-110-62-197.ap-south-1.compute.amazonaws.com/einvewbreqres/php/b2cpdf.php', invpdf, {responseType: 'blob'}
-      )
-      .subscribe((responseData) => {
-        console.log(responseData);
-        this.irnPrint = responseData;
-        this.fileUrl = URL.createObjectURL(this.irnPrint);
+    let doctyp = 'b2c';
+    this.uploadJson.printDoc(invpdf, doctyp)
+      .subscribe((response) => {
+        this.fileUrl = URL.createObjectURL(response);
         window.open(this.fileUrl); 
-      });
+    });  
+  }
+
+  ngOnDestroy(): void {
+    if (this.subscription) {
+      this.subscription.unsubscribe();
+    }
   }
 
 }

@@ -1,33 +1,33 @@
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
-import { saveAs } from 'file-saver';
+import { UploadService } from '../shared/upload.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-einv',
   templateUrl: './einv.component.html',
   styleUrls: ['./einv.component.css']
 })
+
+
 export class EinvComponent implements OnInit {
   sellerGstin = ['29AAFCD5862R000', '27AAFCD5862R013', '24AAFCD5862R005', '35AAFCD5862R010', '09AAFCD5862R006', '37AAFCD5862R011', '07AAFCD5862R007', '33AAFCD5862R009', '05AAFCD5862R012', '13AAFCD5862R008'];
   einvUplForm: FormGroup;
-  file: File = null; // Variable to store file
-  fileReader: any = new FileReader();
-  invData: any = "";  
+  invData: any;  
   irnStatus: any = "";
   fireBase: any = ""; 
   docNo: string = "";
   postData: any = "";
-  gstin: any = "";
+  gstin: string;
   irnPrint: any = "";
   irnData: any = "";
-  // irnResp: any = "";
   fileUrl: any = "";
   req_firid: any = "";
   gstin_error: string;
   js_gstin: string;
+  subscription: Subscription;
 
-  constructor(private http: HttpClient) { }
+  constructor(private uploadJson: UploadService) { }
 
   ngOnInit() {
     this.einvUplForm = new FormGroup({
@@ -36,25 +36,19 @@ export class EinvComponent implements OnInit {
     });
   }
 
-  // On file Select
-  onChange(event) {
-    this.file = event.target.files[0];
-    this.fileReader.readAsText(this.file, "UTF-8");
-    console.log(this.file);
-    this.fileReader.onload = () => {
-      this.invData = JSON.parse(this.fileReader.result);
-      console.log(this.invData);
+  onChange($event) : void { 
+    this.uploadJson.readThis($event.target)
+    .subscribe((response: any): void => {
+      this.invData = JSON.parse(response);
       this.docNo= this.invData[0].transaction.DocDtls.No;
       let inp_gstin = this.einvUplForm.value.gstin;
       this.js_gstin = this.invData[0].transaction.SellerDtls.Gstin;
       if (inp_gstin !== this.js_gstin) {
         this.gstin_error = "The Selected Seller GSTIN and JSON File Seller GSTIN are different kindly check";
       }
-    }
-    this.fileReader.onerror = (error) => {
-      console.log(error);
-    }
+    });
   }
+
 
   onGstin(event) {
     const newVal = event.target.value;
@@ -78,14 +72,12 @@ export class EinvComponent implements OnInit {
       'buyer_nm': this.invData[0].transaction.BuyerDtls.LglNm,
       'irn_status': 'Not Generated',
       'total_val': this.invData[0].transaction.ValDtls.TotInvVal,
-      'inr_req': this.fileReader.result
+      'inr_req': this.invData
     };
+
+    let doctyp = 'einvoices';
   
-    this.http
-      .post(
-        'https://myeinvewb-default-rtdb.firebaseio.com/einvoices.json',
-        irnData
-      )
+    this.uploadJson.saveData(irnData, doctyp)
       .subscribe((responseData) => {
         console.log(responseData);
         this.fireBase = responseData;
@@ -95,19 +87,14 @@ export class EinvComponent implements OnInit {
   }
 
   genIrn() {
-    this.http
-      .post(
-        'http://ec2-3-110-62-197.ap-south-1.compute.amazonaws.com/einvewbreqres/php/einv.php', {gstin: this.einvUplForm.value.gstin, fileToUpload: this.invData}
-      )
-      // .post(
-      //   'http://santoshmohan04.pythonanywhere.com/genirn', { gstin: this.einvUplForm.value.gstin, fileToUpload: this.invData }
-      // )
-      // .post(
-      //   'http://127.0.0.1:5000/upload', { gstin: this.einvUplForm.value.gstin, fileToUpload: this.invData }
-      // )
+    let gendata = { gstin: this.einvUplForm.value.gstin, fileToUpload: this.invData };
+    let doctyp = 'einv';
+    this.uploadJson.generate(gendata, doctyp)
       .subscribe((responseData) => {
         console.log(responseData);
         this.irnStatus = responseData;
+        let doctyp = 'einvoices';
+        let fbid = this.fireBase.name; 
         if (this.irnStatus[0].document_status === 'IRN_GENERATED') {
           let irnResp = {
             'irn_status': this.irnStatus[0].document_status,
@@ -116,11 +103,8 @@ export class EinvComponent implements OnInit {
             'ack_no': this.irnStatus[0].govt_response.AckNo,
             'irn_resp': this.irnStatus,
           };
-          this.http
-          .patch(
-            'https://myeinvewb-default-rtdb.firebaseio.com/einvoices/' + this.fireBase.name + '.json',
-            irnResp
-          )
+
+          this.uploadJson.updateData(irnResp, doctyp, fbid)
           .subscribe((responseData) => {
             console.log("Response Data Saved:" + responseData);
           });
@@ -129,14 +113,11 @@ export class EinvComponent implements OnInit {
             'irn_status': this.irnStatus[0].document_status,
             'irn_resp': this.irnStatus,
           };
-          this.http
-          .patch(
-            'https://myeinvewb-default-rtdb.firebaseio.com/einvoices/' + this.fireBase.name + '.json',
-            irnResp
-          )
+
+          this.uploadJson.updateData(irnResp, doctyp, fbid)
           .subscribe((responseData) => {
             console.log("Response Data Saved:" + responseData);
-          }); 
+          });
         }
       });
   }
@@ -150,18 +131,10 @@ export class EinvComponent implements OnInit {
   }
 
   downloadJson() {
-    console.log("I am in Print console");
-			let data: any = this.irnStatus;
-			let fileName: any = this.docNo + '_response.json';
-
-			// Create a blob of the data
-			let fileToSave = new Blob([JSON.stringify(data)], {
-				type: 'application/json',
-			});
-
-			// Save the file
-			saveAs(fileToSave, fileName);
-			console.log("File Downloaded");
+    this.uploadJson.respDownload(this.irnStatus, this.docNo)
+    .subscribe((response: any): void => {
+      response
+    });
   }
 
   onirnPrint() {
@@ -169,13 +142,17 @@ export class EinvComponent implements OnInit {
       'irn':this.irnStatus[0].govt_response.Irn,
       'gstin':this.irnStatus[0].transaction.SellerDtls.Gstin
       }
-    this.http
-      .post(
-        'http://ec2-3-110-62-197.ap-south-1.compute.amazonaws.com/einvewbreqres/php/einvpdf.php', invPdf, {responseType:'blob'}
-      )
-      .subscribe((responseData) => {
-        this.fileUrl = URL.createObjectURL(responseData);
+      let doctyp = 'einv';
+      this.uploadJson.printDoc(invPdf, doctyp)
+      .subscribe((response) => {
+        this.fileUrl = URL.createObjectURL(response);
         window.open(this.fileUrl); 
     });  
+  }
+
+  ngOnDestroy(): void {
+    if (this.subscription) {
+      this.subscription.unsubscribe();
+    }
   }
 }

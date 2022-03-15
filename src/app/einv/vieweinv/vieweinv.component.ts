@@ -1,5 +1,6 @@
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
+import { UploadService } from '../../shared/upload.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-vieweinv',
@@ -14,13 +15,13 @@ export class VieweinvComponent implements OnInit {
   fireId: any = "";
   isLoading = false;
   error: string = null;
+  subscription: Subscription;
 
-  constructor(private http: HttpClient) {
-    
-  }
+  constructor(private uploadJson: UploadService) { }
 
   ngOnInit() {
-    this.http.get('https://myeinvewb-default-rtdb.firebaseio.com/einvoices.json')
+    let doctyp = 'einvoices';
+    this.uploadJson.getData(doctyp)
       .subscribe((responseData) => {
         this.data = Object.values(responseData);
         this.fireId = Object.keys(responseData);
@@ -37,30 +38,31 @@ export class VieweinvComponent implements OnInit {
       'irn':this.data[i].irn,
       'gstin':this.data[i].sel_gstin
     }
-    this.http
-      .post(
-        'http://ec2-3-110-62-197.ap-south-1.compute.amazonaws.com/einvewbreqres/php/einvpdf.php', invPdf, {responseType:'blob'}
-      )
-      .subscribe((responseData) => {
-        this.fileUrl = URL.createObjectURL(responseData);
+    let doctyp = 'einv';
+      this.uploadJson.printDoc(invPdf, doctyp)
+      .subscribe((response) => {
+        this.fileUrl = URL.createObjectURL(response);
         window.open(this.fileUrl); 
     });
   }
 
   onDelete(i){
-    let firebaseId = this.fireId[i];
-    this.http
-    .delete(
-      'https://myeinvewb-default-rtdb.firebaseio.com/einvoices/' + firebaseId + '.json'
-    )
+    let doctyp = 'einvoices';
+    let fbid = this.fireId[i];
+    this.uploadJson.deleteData(doctyp, fbid)
     .subscribe((responseData) => {
       console.log(responseData);
       if (responseData == null) {
-        // const index = this.data.indexOf(i);
         this.data.splice(i, 1);
         alert('Document Deleted');
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    if (this.subscription) {
+      this.subscription.unsubscribe();
+    }
   }
 
 }

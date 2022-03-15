@@ -1,5 +1,6 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
+import { UploadService } from '../../shared/upload.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-viewewb',
@@ -13,13 +14,13 @@ export class ViewewbComponent implements OnInit {
   isLoading = false;
   fireId: any = "";
   error: string = null;
+  subscription: Subscription;
 
-  constructor(private http: HttpClient) {
-    
-  }
+  constructor(private uploadJson: UploadService) { }
 
   ngOnInit() {
-    this.http.get('https://myeinvewb-default-rtdb.firebaseio.com/ewaybills.json')
+    let doctyp = 'ewaybills';
+    this.uploadJson.getData(doctyp)
       .subscribe((responseData) => {
         this.data = Object.values(responseData);
         this.fireId = Object.keys(responseData);
@@ -37,22 +38,18 @@ export class ViewewbComponent implements OnInit {
         'gstin': this.data[i].sel_gstin,
         'prnttyp': 'DETAILED'
       }
-      this.http
-        .post(
-          'http://ec2-3-110-62-197.ap-south-1.compute.amazonaws.com/einvewbreqres/php/ewbpdf.php', invPdf, {responseType: 'blob'}
-        )
-        .subscribe((responseData) => {
-          this.fileUrl = URL.createObjectURL(responseData);
-          window.open(this.fileUrl);    
-    });
+      let doctyp = 'ewb';
+      this.uploadJson.printDoc(invPdf, doctyp)
+      .subscribe((response) => {
+        this.fileUrl = URL.createObjectURL(response);
+        window.open(this.fileUrl); 
+      });
   }
 
   onDelete(i){
-    let firebaseId = this.fireId[i];
-    this.http
-    .delete(
-      'https://myeinvewb-default-rtdb.firebaseio.com/ewaybills/' + firebaseId + '.json'
-    )
+    let doctyp = 'ewaybills';
+    let fbid = this.fireId[i];
+    this.uploadJson.deleteData(doctyp, fbid)
     .subscribe((responseData) => {
       console.log(responseData);
       if (responseData == null) {
@@ -60,6 +57,12 @@ export class ViewewbComponent implements OnInit {
         alert('Document Deleted');
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    if (this.subscription) {
+      this.subscription.unsubscribe();
+    }
   }
 
 }

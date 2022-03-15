@@ -1,7 +1,7 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
-import { saveAs } from 'file-saver';
+import { UploadService } from '../shared/upload.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-ewb',
@@ -12,8 +12,6 @@ export class EwbComponent implements OnInit {
 
   sellerGstin = ['29AAFCD5862R000', '27AAFCD5862R013', '24AAFCD5862R005', '35AAFCD5862R010', '09AAFCD5862R006', '37AAFCD5862R011', '07AAFCD5862R007', '33AAFCD5862R009', '05AAFCD5862R012', '13AAFCD5862R008'];
   ewbUplForm: FormGroup;
-  file: File = null; // Variable to store file
-  fileReader: any = new FileReader();
   invData: any = "";  
   ewbStatus: any = "";
   fireBase: any = ""; 
@@ -24,8 +22,9 @@ export class EwbComponent implements OnInit {
   req_firid: any = "";
   gstin_error: string;
   js_gstin: string;
+  subscription: Subscription;
 
-  constructor(private http: HttpClient) { }
+  constructor(private uploadJson: UploadService) { }
 
   ngOnInit() {
     this.ewbUplForm = new FormGroup({
@@ -35,21 +34,17 @@ export class EwbComponent implements OnInit {
   }
 
   // On file Select
-  onChange(event) {
-    this.file = event.target.files[0];
-    this.fileReader.readAsText(this.file, "UTF-8");
-    this.fileReader.onload = () => {
-      this.invData = JSON.parse(this.fileReader.result);
+  onChange($event) : void { 
+    this.uploadJson.readThis($event.target)
+    .subscribe((response: any): void => {
+      this.invData = JSON.parse(response);
       this.docNo= this.invData.DocumentNumber;
       let inp_gstin = this.ewbUplForm.value.gstin;
       this.js_gstin = this.invData.SellerDtls.Gstin;
       if (inp_gstin !== this.js_gstin) {
         this.gstin_error = "The Selected Seller GSTIN and JSON File Seller GSTIN are different kindly check";
       }
-    }
-    this.fileReader.onerror = (error) => {
-      console.log(error);
-    }
+    });
   }
 
   onGstin(event) {
@@ -74,31 +69,29 @@ export class EwbComponent implements OnInit {
       'buyer_nm': this.invData.BuyerDtls.LglNm,
       'ewb_status': 'Not Generated',
       'total_val': this.invData.TotalInvoiceAmount,
-      'ewb_req': this.fileReader.result
+      'ewb_req': this.invData
     };
 
-    this.http
-      .post(
-        'https://myeinvewb-default-rtdb.firebaseio.com/ewaybills.json',
-        ewbData
-      )
+    let doctyp = 'ewaybills';
+
+    this.uploadJson.saveData(ewbData, doctyp)
       .subscribe((responseData) => {
         console.log(responseData);
         this.fireBase = responseData;
         this.req_firid = this.fireBase.name;
         console.log(this.req_firid);
-      });
+    });
   }
 
   genEwb() {
-    this.http
-      .post(
-        'http://ec2-3-110-62-197.ap-south-1.compute.amazonaws.com/einvewbreqres/php/ewb.php', {gstin: this.ewbUplForm.value.gstin, fileToUpload: this.invData}
-      )
+    let gendata = {gstin: this.ewbUplForm.value.gstin, fileToUpload: this.invData};
+    let doctyp = 'ewb';
+    this.uploadJson.generate(gendata, doctyp)
       .subscribe((responseData) => {
         console.log(responseData);
         this.ewbStatus = responseData;
-        // this.irnData.emit(this.irnStatus);
+        let doctyp = 'ewb';
+        let fbid = this.fireBase.name; 
         if (this.ewbStatus.ewb_status === 'GENERATED') {
           let ewbResp = {
             'ewb_status': this.ewbStatus.ewb_status,
@@ -107,11 +100,7 @@ export class EwbComponent implements OnInit {
             'ewbvalidity': this.ewbStatus.govt_response.EwbValidTill,
             'ewb_resp': this.ewbStatus,
           };
-          this.http
-          .patch(
-            'https://myeinvewb-default-rtdb.firebaseio.com/ewaybills/' + this.fireBase.name + '.json',
-            ewbResp
-          )
+          this.uploadJson.updateData(ewbResp, doctyp, fbid)
           .subscribe((responseData) => {
             console.log("Response Data Saved:" + responseData);
           });
@@ -120,14 +109,10 @@ export class EwbComponent implements OnInit {
             'ewb_status': this.ewbStatus.ewb_status,
             'ewb_resp': this.ewbStatus,
           };
-          this.http
-          .patch(
-            'https://myeinvewb-default-rtdb.firebaseio.com/ewaybills/' + this.fireBase.name + '.json',
-            ewbResp
-          )
+          this.uploadJson.updateData(ewbResp, doctyp, fbid)
           .subscribe((responseData) => {
             console.log("Response Data Saved:" + responseData);
-          }); 
+          });
         }
       });
   }
@@ -141,18 +126,10 @@ export class EwbComponent implements OnInit {
   }
 
   downloadJson() {
-    console.log("I am in Print console");
-			let data: any = this.ewbStatus;
-			let fileName: any = this.docNo + '_response.json';
-
-			// Create a blob of the data
-			let fileToSave = new Blob([JSON.stringify(data)], {
-				type: 'application/json',
-			});
-
-			// Save the file
-			saveAs(fileToSave, fileName);
-			console.log("File Downloaded");
+    this.uploadJson.respDownload(this.ewbStatus, this.docNo)
+    .subscribe((response: any): void => {
+      response
+    });
   }
 
   onewbPrint() {
@@ -161,16 +138,17 @@ export class EwbComponent implements OnInit {
       'gstin': this.ewbStatus.ewb_request.SellerDtls.Gstin,
       'prnttyp': 'DETAILED'
     }
-    this.http
-      .post(
-        'http://ec2-3-110-62-197.ap-south-1.compute.amazonaws.com/einvewbreqres/php/ewbpdf.php', invPdf, {responseType: 'blob'}
-      )
-      .subscribe((responseData) => {
-        console.log(responseData);
-        this.ewbPrint = responseData;
-        this.fileUrl = URL.createObjectURL(this.ewbPrint);
+    let doctyp = 'ewb';
+    this.uploadJson.printDoc(invPdf, doctyp)
+      .subscribe((response) => {
+        this.fileUrl = URL.createObjectURL(response);
         window.open(this.fileUrl); 
-      });    
+    });    
   }
 
+  ngOnDestroy(): void {
+    if (this.subscription) {
+      this.subscription.unsubscribe();
+    }
+  }
 }

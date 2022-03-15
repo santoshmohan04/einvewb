@@ -17,6 +17,7 @@ import { Ng2SearchPipeModule } from 'ng2-search-filter';
 import { LoadingSpinnerComponent } from './shared/loading-spinner/loading-spinner.component';
 import { AuthComponent } from './auth/auth.component';
 import { AuthInterceptorService } from './auth/auth-interceptor.service';
+import { UploadService } from './shared/upload.service';
 
 @NgModule({
   declarations: [
@@ -44,7 +45,8 @@ import { AuthInterceptorService } from './auth/auth-interceptor.service';
     provide: HTTP_INTERCEPTORS,
     useClass: AuthInterceptorService,
     multi: true
-  }],
+  },
+  UploadService],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

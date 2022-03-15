@@ -1,5 +1,6 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
+import { UploadService } from '../../shared/upload.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-viewb2c',
@@ -14,11 +15,13 @@ export class Viewb2cComponent implements OnInit {
   fireId: any = "";
   isLoading = false;
   error: string = null;
+  subscription: Subscription;
 
-  constructor(private http: HttpClient) { }
+  constructor(private uploadJson: UploadService) { }
 
   ngOnInit() {
-    this.http.get('https://myeinvewb-default-rtdb.firebaseio.com/b2cqr.json')
+    let doctyp = 'b2cqr';
+    this.uploadJson.getData(doctyp)
       .subscribe((responseData) => {
         this.data = Object.values(responseData);
         this.fireId = Object.keys(responseData);
@@ -34,30 +37,31 @@ export class Viewb2cComponent implements OnInit {
   onPrint(i) {
     let invPdf = {'id': this.data[i].trns_id,
                   'gstin': this.data[i].sel_gstin};
-    this.http
-      .post(
-        'http://ec2-3-110-62-197.ap-south-1.compute.amazonaws.com/einvewbreqres/php/b2cpdf.php', invPdf, {responseType: 'blob'}
-      )
-      .subscribe((responseData) => {
-        this.fileUrl = URL.createObjectURL(responseData);
-        window.open(this.fileUrl); 
+    let doctyp = 'b2c';
+    this.uploadJson.printDoc(invPdf, doctyp)
+    .subscribe((response) => {
+      this.fileUrl = URL.createObjectURL(response);
+      window.open(this.fileUrl); 
     });
   }
 
   onDelete(i){
-    let firebaseId = this.fireId[i];
-    this.http
-    .delete(
-      'https://myeinvewb-default-rtdb.firebaseio.com/b2cqr/' + firebaseId + '.json'
-    )
+    let doctyp = 'b2cqr';
+    let fbid = this.fireId[i];
+    this.uploadJson.deleteData(doctyp, fbid)
     .subscribe((responseData) => {
       console.log(responseData);
       if (responseData == null) {
-        // const index = this.data.indexOf(i);
         this.data.splice(i, 1);
         alert('Document Deleted');
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    if (this.subscription) {
+      this.subscription.unsubscribe();
+    }
   }
 
 }
